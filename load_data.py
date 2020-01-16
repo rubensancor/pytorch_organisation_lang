@@ -2,10 +2,8 @@ import torch
 from torchtext import data
 from torchtext.vocab import Vectors
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
-def load_dataset(path, device):
+def load_dataset(path, device, batch_size):
 
     tokenize = lambda x: x.split()
 
@@ -38,9 +36,24 @@ def load_dataset(path, device):
     print("Vector size of Text Vocabulary: ", TEXT.vocab.vectors.size(), flush=True)
     print("Label Length: " + str(len(LABEL.vocab)), flush=True)
 
-    train_iter = data.BucketIterator(train_data, batch_size=4096, sort_key=lambda x: len(x.text), repeat=False, shuffle=True, device=device)
-    test_iter = data.BucketIterator(test_data, batch_size=4096, sort_key=lambda x: len(x.text), repeat=False, shuffle=True, device=device)
-    valid_iter = data.BucketIterator(valid_data, batch_size=4096, sort_key=lambda x: len(x.text), repeat=False, shuffle=True, device=device)
+    train_iter = data.BucketIterator(train_data,
+                                     batch_size=batch_size,
+                                     sort_key=lambda x: len(x.text),
+                                     repeat=False,
+                                     shuffle=True,
+                                     device=device)
+    test_iter = data.BucketIterator(test_data,
+                                    batch_size=batch_size,
+                                    sort_key=lambda x: len(x.text),
+                                    repeat=False,
+                                    shuffle=True,
+                                    device=device)
+    valid_iter = data.BucketIterator(valid_data,
+                                     batch_size=batch_size,
+                                     sort_key=lambda x: len(x.text),
+                                     repeat=False,
+                                     shuffle=True,
+                                     device=device)
 
     vocab_size = len(TEXT.vocab)
 
