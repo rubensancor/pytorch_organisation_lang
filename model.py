@@ -2,23 +2,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# embed_train = True
-num_orgs = 4 # TODO
-out_channels = 200
-
 
 class MultiCNN(nn.Module):
     def __init__(self, dropout_prob, embedding_matrix, vocab_size,
                  embedding_length, kernel_heights, in_channels,
-                 out_channels, embed_train=True):
+                 out_channels, num_labels, freeze=False):
         super(MultiCNN, self).__init__()
 
         # Embedding layer
         self.embeddings = nn.Embedding(vocab_size, embedding_length)
-        self.embeddings.weight = nn.Parameter(torch.tensor(embedding_matrix,
-                                                           dtype=torch.float32))
-        self.embeddings.weight.requires_grad = embed_train
-
+        self.embeddings.from_pretrained(embedding_matrix, freeze=freeze)
+        
         # Conv layers
         self.conv1 = nn.Conv2d(in_channels, out_channels,
                                (kernel_heights[0], embedding_length))
@@ -29,12 +23,12 @@ class MultiCNN(nn.Module):
         self.conv4 = nn.Conv2d(in_channels, out_channels,
                                (kernel_heights[3], embedding_length))
 
-        self.dense1 = nn.Linear(800, 1024)
+        self.dense1 = nn.Linear(len(kernel_heights) * out_channels, 1024)
         self.dropout1 = nn.Dropout(dropout_prob)
         self.dense2 = nn.Linear(1024, 256)
         self.dropout2 = nn.Dropout(dropout_prob)
         
-        self.dense_soft = nn.Linear(256, num_orgs)
+        self.dense_soft = nn.Linear(256, num_labels)
 
     def forward(self, x):
         x = self.embeddings(x)
