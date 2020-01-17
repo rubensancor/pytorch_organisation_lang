@@ -9,7 +9,8 @@ cuda = torch.device('cuda')
 class MultiCNN(nn.Module):
     def __init__(self, dropout_prob, embedding_matrix, vocab_size,
                  embedding_length, kernel_heights, in_channels,
-                 out_channels, num_labels, mixed_memory=False, freeze=False):
+                 out_channels, num_labels, mixed_memory=False,
+                 freeze_embeddings=False):
         super(MultiCNN, self).__init__()
 
         self.dropout_prob = dropout_prob
@@ -21,7 +22,7 @@ class MultiCNN(nn.Module):
         self.out_channels = out_channels
         self.num_labels = num_labels
         self.mixed_memory = mixed_memory
-        self.freeze = freeze
+        self.freeze = freeze_embeddings
 
         if mixed_memory:
             self.__mixed_model__()

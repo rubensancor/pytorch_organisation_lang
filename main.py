@@ -14,7 +14,7 @@ from load_data import load_dataset
 from metrics import f1, prec, rec
 from pytorchtools import EarlyStopping
 
-os.environ['WANDB_MODE'] = 'dryrun'
+# os.environ['WANDB_MODE'] = 'dryrun'
 
 wandb.init(project="organisational-language")
 
@@ -48,7 +48,8 @@ def initializate_model():
                      in_channels=1,
                      out_channels=200,
                      mixed_memory=True,
-                     num_labels=6)
+                     num_labels=6,
+                     freeze_embeddings=True)
 
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -107,11 +108,11 @@ def train_model(model, optim, train_iter, epoch):
 
     # Log train metrics to wandb
     wandb.log({'epoch': epoch+1,
-                'f1_train': np.mean(total_epoch_f1),
-                'prec_train': np.mean(total_epoch_prec),
-                'rec_train': np.mean(total_epoch_rec),
-                'loss_train_moment': loss.item(),
-                'loss_train_mean': np.mean(total_epoch_loss)})
+               'f1_train': np.mean(total_epoch_f1),
+               'prec_train': np.mean(total_epoch_prec),
+               'rec_train': np.mean(total_epoch_rec),
+               'loss_train_moment': loss.item(),
+               'loss_train_mean': np.mean(total_epoch_loss)})
 
     return total_epoch_loss, total_epoch_f1, total_epoch_prec, total_epoch_rec
 
