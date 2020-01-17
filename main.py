@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 from model import MultiCNN
 from load_data import load_dataset
-from metrics import f1, prec, rec
+from metrics import f1, prec, rec, acc
 from pytorchtools import EarlyStopping
 
 # os.environ['WANDB_MODE'] = 'dryrun'
@@ -62,6 +62,7 @@ def train_model(model, optim, train_iter, epoch):
     total_epoch_prec = []
     total_epoch_f1 = []
     total_epoch_rec = []
+    total_epoch_acc = []
 
     # Train
     if not model.mixed_memory:
@@ -87,6 +88,7 @@ def train_model(model, optim, train_iter, epoch):
         
         # Calculate the metrics
         loss = F.cross_entropy(prediction, target)
+        total_epoch_acc.append(acc(prediction, target))
         total_epoch_f1.append(f1(prediction, target))
         total_epoch_prec.append(prec(prediction, target))
         total_epoch_rec.append(rec(prediction, target))
@@ -98,6 +100,7 @@ def train_model(model, optim, train_iter, epoch):
         if idx % 100 == 0:
             print('TRAIN --> ',
                   'Epoch: {:04d}'.format(epoch + 1),
+                  'acc_train: {:04f}'.format(np.mean(total_epoch_acc)),
                   'f1_train: {:.4f}'.format(np.mean(total_epoch_f1)),
                   'prec_train: {:.4f}'.format(np.mean(total_epoch_prec)),
                   'rec_train: {:.4f}'.format(np.mean(total_epoch_rec)),
@@ -108,6 +111,7 @@ def train_model(model, optim, train_iter, epoch):
 
     # Log train metrics to wandb
     wandb.log({'epoch': epoch+1,
+               'acc_train': np.mean(total_epoch_acc),
                'f1_train': np.mean(total_epoch_f1),
                'prec_train': np.mean(total_epoch_prec),
                'rec_train': np.mean(total_epoch_rec),
@@ -122,6 +126,7 @@ def val_model(model, val_iter, epoch, early_stopping):
     total_prec = []
     total_rec = []
     total_loss = []
+    total_acc = []
 
     if not model.mixed_memory:
         model = model.to(device)
@@ -141,18 +146,21 @@ def val_model(model, val_iter, epoch, early_stopping):
             prediction = model(text)
 
             loss = F.cross_entropy(prediction, target)
+            total_acc.append(acc(prediction, target))
             total_f1.append(f1(prediction, target))
             total_prec.append(prec(prediction, target))
             total_rec.append(rec(prediction, target))
             total_loss.append(loss.item())
 
     print('VALIDATION --> '
+          'acc_val: {:.4f}'.format(np.mean(total_acc)),
           'f1_val: {:.4f}'.format(np.mean(total_f1)),
           'prec_val: {:.4f}'.format(np.mean(total_prec)),
           'rec_val: {:.4f}'.format(np.mean(total_rec)),
           'loss_val: {:.4f}'.format(loss.item()),
           flush=True)
     wandb.log({'epoch': epoch+1,
+               'acc_val': np.mean(total_acc),
                'f1_val': np.mean(total_f1),
                'prec_val': np.mean(total_prec),
                'rec_val': np.mean(total_rec),
@@ -168,6 +176,7 @@ def test_model(model, test_iter):
     total_prec_test = []
     total_rec_test = []
     total_loss_test = []
+    total_acc_test = []
 
     if not model.mixed_memory:
         model = model.to(device)
@@ -184,19 +193,23 @@ def test_model(model, test_iter):
             target = target.to(device)
 
             prediction = model(text)
+
             loss = F.cross_entropy(prediction, target)
+            total_acc_test.append(acc(prediction, target))
             total_f1_test.append(f1(prediction, target))
             total_prec_test.append(prec(prediction, target))
             total_rec_test.append(rec(prediction, target))
             total_loss_test.append(loss.item())
 
     print('TEST --> ',
+          'acc_test: {:.4f}'.format(np.mean(total_acc_test)),
           'f1_test: {:.4f}'.format(np.mean(total_f1_test)),
           'prec_test: {:.4f}'.format(np.mean(total_prec_test)),
           'rec_test: {:.4f}'.format(np.mean(total_rec_test)),
           'loss_test: {:.4f}'.format(loss.item()),
           flush=True)
-    wandb.log({'f1_test': np.mean(total_f1_test),
+    wandb.log({'acc_test': np.mean(total_acc_test),
+               'f1_test': np.mean(total_f1_test),
                'prec_test': np.mean(total_prec_test),
                'rec_test': np.mean(total_rec_test),
                'loss_test_mean': np.mean(total_loss_test)})
@@ -211,9 +224,9 @@ if __name__ == '__main__':
      word_embeddings,
      train_iter,
      valid_iter,
-     test_iter) = load_dataset(path='./data/mixed_noMention.csv',
+     test_iter) = load_dataset(path='./data/mixed.csv',
                                device=torch.device('cpu'),
-                               batch_size=1)
+                               batch_size=4096)
 
     print('*' * 20 + ' DATA LOADED! ' + '*' * 20, flush=True)
 
