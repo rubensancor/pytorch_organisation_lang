@@ -14,11 +14,16 @@ from load_data import load_dataset
 from metrics import f1, prec, rec, acc
 from pytorchtools import EarlyStopping
 
-# os.environ['WANDB_MODE'] = 'dryrun'
-
-wandb.init(project="organisational-language")
-
 parser = argparse.ArgumentParser(description='Main file')
+parser.add_argument('-ws', '--wandb_sync',
+                    action='store_true',
+                    help='Check if the run is going to be uploaded to WandB')
+parser.add_argument('--freeze',
+                    action='store_true',
+                    help='Freeze pretrained embeddings')
+parser.add_argument('-f', '--file',
+                    requiered=True,
+                    help='The dataset file to use')
 # parser.add_argument('-f', '--filename',
 #                     help='File with the configuration for the experiment')
 # args = parser.parse_args()
@@ -26,6 +31,11 @@ parser = argparse.ArgumentParser(description='Main file')
 #     print('File')
 #     # TODO Manage the data inserted in the experiment
 args = parser.parse_args()
+
+if not args.wandb_sync:
+    os.environ['WANDB_MODE'] = 'dryrun'
+
+wandb.init(project="organisational-language")
 
 seed = 1234
 
@@ -49,7 +59,7 @@ def initializate_model():
                      out_channels=200,
                      mixed_memory=True,
                      num_labels=6,
-                     freeze_embeddings=True)
+                     freeze_embeddings=args.freeze)
 
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -219,12 +229,13 @@ def test_model(model, test_iter):
 if __name__ == '__main__':
     print('*' * 20 + ' Loading data ' + '*' * 20, flush=True)
 
+    #TODO Change the device to use with a flag
     (TEXT,
      vocab_size,
      word_embeddings,
      train_iter,
      valid_iter,
-     test_iter) = load_dataset(path='./data/mixed.csv',
+     test_iter) = load_dataset(path='./data/' + args.file,
                                device=torch.device('cpu'),
                                batch_size=4096)
 
@@ -232,7 +243,7 @@ if __name__ == '__main__':
 
     model, optimizer = initializate_model()
     wandb.watch(model, log="all")
-    
+
     par = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('The model has %i trainable parameters' % par, flush=True)
 

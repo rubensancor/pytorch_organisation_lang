@@ -5,5 +5,9 @@ RUN apt-get update && apt-get install -y --allow-unauthenticated \
     python3-dev \
     python3-pip 
 
+COPY pytorch_organisation_lang /pytorch_organisation_lang
+
+WORKDIR /pytorch_organisation_lang
+
 RUN pip3 install --upgrade pip
-RUN pip3 install -U torch wandb torchtext sklearn
+RUN pip3 install -r /pytorch_organisation_lang/requierements.txt

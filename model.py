@@ -32,8 +32,9 @@ class MultiCNN(nn.Module):
     def __default_model__(self):
         # Embedding layer
         self.embeddings = nn.Embedding(self.vocab_size, self.embedding_length)
-        self.embeddings.from_pretrained(self.embedding_matrix,
-                                        freeze=self.freeze)
+        self.embeddings.from_pretrained(self.embedding_matrix)
+        if self.freeze:
+            self.embeddings.weight.requires_grad = False
 
         # Conv layers
         self.conv1 = nn.Conv2d(self.in_channels, self.out_channels,
@@ -56,8 +57,9 @@ class MultiCNN(nn.Module):
     def __mixed_model__(self):
         # Embedding layer
         self.embeddings = nn.Embedding(self.vocab_size, self.embedding_length).to(cpu)
-        self.embeddings.from_pretrained(self.embedding_matrix,
-                                        freeze=self.freeze).to(cpu)
+        self.embeddings.from_pretrained(self.embedding_matrix).to(cpu)
+        if self.freeze:
+            self.embeddings.weight.requires_grad = False
 
         # Conv layers
         self.conv1 = nn.Conv2d(self.in_channels,
