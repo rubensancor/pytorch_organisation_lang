@@ -20,24 +20,39 @@ parser.add_argument('-ws', '--wandb_sync',
                     help='Check if the run is going to be uploaded to WandB')
 parser.add_argument('--freeze',
                     action='store_true',
-                    help='Freeze pretrained embeddings')
+                    help='Freeze pretrained embeddings.')
 parser.add_argument('-f', '--file',
-                    requiered=True,
-                    help='The dataset file to use')
-# parser.add_argument('-f', '--filename',
-#                     help='File with the configuration for the experiment')
-# args = parser.parse_args()
-# with open(args.filename) as file:
-#     print('File')
-#     # TODO Manage the data inserted in the experiment
+                    required=True,
+                    help='The dataset file to use. It must be stored in '
+                         './data folder')
+parser.add_argument('-p', '--patience',
+                    default=2, type=int,
+                    help=('The number of epochs that have to pass without '
+                          'reducing the val_loss prior to call early '
+                          'stopping'))
+parser.add_argument('-e', '--epochs',
+                    default=10, type=int,
+                    help=('Number of epochs to run for the experiment.'))
+parser.add_argument('-b', '--batch',
+                    default=1024, type=int,
+                    help=('Batch size for each step.'))
+parser.add_argument('-d', '--dropout',
+                    default=0.8, type=float,
+                    help=('Dropout probability for the model.'))
+parser.add_argument('--lr',
+                    default=0.001, type=float,
+                    help=('Learning rate for the optimizer.'))
+parser.add_argument('--seed',
+                    default=1234, type=int,
+                    help=('Seed for the random generator.'))
 args = parser.parse_args()
 
 if not args.wandb_sync:
     os.environ['WANDB_MODE'] = 'dryrun'
 
-wandb.init(project="organisational-language")
+wandb.init(project="organisational-language", config=args)
 
-seed = 1234
+seed = args.seed
 
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -49,19 +64,23 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(seed)
 
 
-def initializate_model():
-    model = MultiCNN(dropout_prob=0.8,
+def initializate_model(dropout, word_embeddings, vocab_size,
+                       num_labels, embedding_length, kernel_heights,
+                       in_channels, out_channels, mixed_memory,
+                       freeze_embeddings, lr):
+
+    model = MultiCNN(dropout_prob=dropout,
                      embedding_matrix=word_embeddings,
                      vocab_size=vocab_size,
-                     embedding_length=300,
-                     kernel_heights=[3, 4, 5, 6],
-                     in_channels=1,
-                     out_channels=200,
-                     mixed_memory=True,
-                     num_labels=6,
-                     freeze_embeddings=args.freeze)
+                     embedding_length=embedding_length,
+                     kernel_heights=kernel_heights,
+                     in_channels=in_channels,
+                     out_channels=out_channels,
+                     mixed_memory=mixed_memory,
+                     num_labels=num_labels,
+                     freeze_embeddings=freeze_embeddings)
 
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
     return model, optimizer
 
@@ -95,7 +114,7 @@ def train_model(model, optim, train_iter, epoch):
 
         # Make the predictions for the text
         prediction = model(text)
-        
+
         # Calculate the metrics
         loss = F.cross_entropy(prediction, target)
         total_epoch_acc.append(acc(prediction, target))
@@ -144,7 +163,7 @@ def val_model(model, val_iter, epoch, early_stopping):
 
     with torch.no_grad():
         for idx, batch in enumerate(val_iter):
-            
+
             text = batch.tweet[0]
             target = batch.organisation
             target = torch.autograd.Variable(target).long()
@@ -223,35 +242,45 @@ def test_model(model, test_iter):
                'prec_test': np.mean(total_prec_test),
                'rec_test': np.mean(total_rec_test),
                'loss_test_mean': np.mean(total_loss_test)})
-    
 
 
 if __name__ == '__main__':
     print('*' * 20 + ' Loading data ' + '*' * 20, flush=True)
 
-    #TODO Change the device to use with a flag
+    # TODO Change the device to use with a flag
     (TEXT,
      vocab_size,
+     label_size,
      word_embeddings,
      train_iter,
      valid_iter,
      test_iter) = load_dataset(path='./data/' + args.file,
                                device=torch.device('cpu'),
-                               batch_size=4096)
+                               batch_size=args.batch)
 
     print('*' * 20 + ' DATA LOADED! ' + '*' * 20, flush=True)
 
-    model, optimizer = initializate_model()
+    model, optimizer = initializate_model(dropout=args.dropout,
+                                          word_embeddings=word_embeddings,
+                                          vocab_size=vocab_size,
+                                          num_labels=label_size,
+                                          embedding_length=300,
+                                          kernel_heights=[2, 3, 4, 5],
+                                          in_channels=1,
+                                          out_channels=200,
+                                          mixed_memory=True,
+                                          freeze_embeddings=False,
+                                          lr=args.lr)
     wandb.watch(model, log="all")
 
     par = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('The model has %i trainable parameters' % par, flush=True)
 
-    EPOCH = 10
-    patience = 3
+    EPOCHS = args.epochs
+    patience = args.patience
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
-    for i in range(EPOCH):
+    for i in range(EPOCHS):
         train_model(model, optimizer, train_iter, i)
         early_stop = val_model(model, valid_iter, i, early_stopping)
 

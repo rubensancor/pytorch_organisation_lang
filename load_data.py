@@ -58,5 +58,7 @@ def load_dataset(path, device, batch_size):
                                      device=device)
 
     vocab_size = len(TEXT.vocab)
+    label_size = len(LABEL.vocab)
 
-    return TEXT, vocab_size, word_embeddings, train_iter, valid_iter, test_iter
+    return (TEXT, vocab_size, label_size, word_embeddings,
+            train_iter, valid_iter, test_iter)

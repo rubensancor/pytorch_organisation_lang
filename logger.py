@@ -1,6 +1,11 @@
 import wandb
 from comet_ml import Experiment
 
+# TODO: - Log assets
+#       - Log confusion matrix
+#       - Log metrics
+#       - Log parameters
+
 
 class Logger():
 
@@ -22,11 +27,12 @@ class Wandb_logger(Logger):
 
 class Comet_logger(Logger):
 
-    def __init__(self, workspace):
+    def __init__(self, api_key, project_name, args, run_name,workspace, tags):
         super(Comet_logger, self).__init__()
 
         self.workspace = workspace
+        self.tags = tags
 
-        experiment = Experiment(api_key=self.api_key,
+        self.experiment = Experiment(api_key=self.api_key,
                                 project_name=self.project_name,
                                 workspace=self.workspace)
