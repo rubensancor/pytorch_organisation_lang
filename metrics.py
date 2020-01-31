@@ -1,7 +1,8 @@
-from sklearn.metrics import (f1_score, 
+from sklearn.metrics import (f1_score,
                              precision_score,
                              recall_score,
                              accuracy_score)
+from sklearn.metrics import confusion_matrix
 import torch
 
 
@@ -28,3 +29,8 @@ def acc(preds, target):
     preds = torch.max(preds, 1)[1].cpu().detach().numpy()
     return accuracy_score(target, preds)
 
+
+def create_confusion_matrix(preds, target, normalize='all'):
+    target = target.cpu().detach().numpy()
+    preds = torch.max(preds, 1)[1].cpu().detach().numpy()
+    return confusion_matrix(target, preds, normalize=normalize)

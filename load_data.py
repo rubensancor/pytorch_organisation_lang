@@ -2,9 +2,17 @@ import torch
 from torchtext import data
 from torchtext.vocab import Vectors
 
+
+
 # TODO: check if the file exists or not to give a exception
 
-def load_dataset(path, device, batch_size):
+def load_dataset(path, device, batch_size, seed):
+
+    # Set random seed
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.backends.cudnn.deterministic = True
+        torch.cuda.manual_seed_all(seed)
 
     tokenize = lambda x: x.split()
 
@@ -61,4 +69,4 @@ def load_dataset(path, device, batch_size):
     label_size = len(LABEL.vocab)
 
     return (TEXT, vocab_size, label_size, word_embeddings,
-            train_iter, valid_iter, test_iter)
+            train_iter, valid_iter, test_iter, LABEL.vocab.itos)

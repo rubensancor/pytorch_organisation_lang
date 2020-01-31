@@ -1,0 +1,50 @@
+program: main.py
+method: random
+metric:
+  name: f1_test
+  goal: maximize
+parameters:
+  file:
+    distribution: constant
+    value: noVerizon/mixed_Hashtag.csv
+  wandb_sync:
+    distribution: constant
+    value: 1
+  lr:
+    distribution: uniform
+    min: 0.0005
+    max: 0.002
+  seed:
+    distribution: int_uniform
+    min: 617
+    max: 2468
+  batch:
+    distribution: int_uniform
+    min: 512
+    max: 4096
+  epochs:
+    distribution: constant
+    value: 10
+  dropout:
+    distribution: uniform
+    min: 0.2
+    max: 1
+  mixed_memory:
+    distribution: constant
+    value: 1
+  dense1_size:
+    distribution: int_uniform
+    min: 256
+    max: 1024
+  dense2_size:
+    distribution: int_uniform
+    min: 16
+    max: 512
+  kernel_start:
+    distribution: int_uniform
+    min: 2
+    max: 14
+  kernel_steps:
+    distribution: int_uniform
+    min: 2
+    max: 4
