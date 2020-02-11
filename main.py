@@ -2,6 +2,7 @@ import os
 import time
 import wandb
 import argparse
+import random
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -40,7 +41,7 @@ parser.add_argument('-e', '--epochs',
                     default=10, type=int,
                     help=('Number of epochs to run for the experiment.'))
 parser.add_argument('-b', '--batch',
-                    default=1024, type=int,
+                    default=4096, type=int,
                     help=('Batch size for each step.'))
 parser.add_argument('-d', '--dropout',
                     default=0.8, type=float,
@@ -49,7 +50,7 @@ parser.add_argument('--lr',
                     default=0.001, type=float,
                     help=('Learning rate for the optimizer.'))
 parser.add_argument('--seed',
-                    default=1234, type=int,
+                    type=int,
                     help=('Seed for the random generator.'))
 parser.add_argument('--out_channels',
                     default=200, type=int,
@@ -69,23 +70,28 @@ parser.add_argument('-k2', '--kernel_steps',
 args = parser.parse_args()
 
 
-
 if not args.wandb_sync:
     os.environ['WANDB_MODE'] = 'dryrun'
 
 # Logging
-wandb.init(project="organisational-language", config=args)
-
-seed = args.seed
-
-np.random.seed(seed)
-torch.manual_seed(seed)
+wandb.init(project="organisational-language-final", config=args)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-if torch.cuda.is_available():
-    torch.backends.cudnn.deterministic = True
+
+def set_seed(seed):
+    # Reproducibility
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    #tensor = torch.ones((816,), dtype=torch.uint8)
+    #tensor.new_full((816,), seed, dtype=torch.uint8)
+    #torch.cuda.set_rng_state_all([tensor])
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def train_model(model, optim, train_iter, epoch):
@@ -256,6 +262,13 @@ def test_model(model, test_iter, orgs_labels):
                'loss_test_mean': np.mean(total_loss_test)})
     plot_cm(total_cm)
 
+    return (np.mean(total_acc_test),
+            np.mean(total_f1_test),
+            np.mean(total_prec_test),
+            np.mean(total_rec_test),
+            np.mean(total_loss_test),
+            total_cm)
+
 
 def plot_cm(cm):
     fig, ax = plt.subplots()
@@ -301,12 +314,15 @@ def launch_experiment(model, orgs_labels):
 
     model.load_state_dict(torch.load('checkpoint.pt'))
 
-    test_model(model, test_iter, orgs_labels)
+    return test_model(model, test_iter, orgs_labels)
 
     # wandb.save('checkpoint.pt')
 
 
 if __name__ == '__main__':
+    if args.seed:
+        set_seed(args.seed)
+
     print('*' * 20 + ' Loading data ' + '*' * 20, flush=True)
 
     # TODO Change the device to use with a flag
@@ -319,8 +335,7 @@ if __name__ == '__main__':
      test_iter,
      orgs_labels) = load_dataset(path='./data/' + args.file,
                                  device=torch.device('cpu'),
-                                 batch_size=args.batch,
-                                 seed=args.seed)
+                                 batch_size=args.batch)
 
     print('*' * 20 + ' DATA LOADED! ' + '*' * 20, flush=True)
 
@@ -329,7 +344,7 @@ if __name__ == '__main__':
                      vocab_size=vocab_size,
                      embedding_length=300,
                      kernel_heights=list(range(args.kernel_start,
-                                        args.kernel_start+args.kernel_steps)),
+                                         args.kernel_start+args.kernel_steps)),
                      in_channels=1,
                      out_channels=args.out_channels,
                      dense1_size=args.dense1_size,
@@ -338,5 +353,6 @@ if __name__ == '__main__':
                      num_labels=label_size,
                      freeze_embeddings=args.freeze)
 
-    launch_experiment(model=model,
-                      orgs_labels=orgs_labels)
+    print('*' * 20 + ' Starting experiment ' + '*' * 20, flush=True)
+
+    launch_experiment(model=model, orgs_labels=orgs_labels)

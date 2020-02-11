@@ -43,23 +43,20 @@ class MultiCNN(nn.Module):
                                 out_channels=self.out_channels,
                                 kernel_size=(kernel_h, self.embedding_length))
                                 for kernel_h in self.kernel_heights])
-        # Conv layers
-        # self.conv1 = nn.Conv2d(self.in_channels, self.out_channels,
-        #                        (self.kernel_heights[0], self.embedding_length))
-        # self.conv2 = nn.Conv2d(self.in_channels, self.out_channels,
-        #                        (self.kernel_heights[1], self.embedding_length))
-        # self.conv3 = nn.Conv2d(self.in_channels, self.out_channels,
-        #                        (self.kernel_heights[2], self.embedding_length))
-        # self.conv4 = nn.Conv2d(self.in_channels, self.out_channels,
-        #                        (self.kernel_heights[3], self.embedding_length))
+        (nn.init.xavier_uniform_(conv.weight) for conv in self.convs)
 
         self.dense1 = nn.Linear(len(self.kernel_heights) * self.out_channels,
                                 self.dense1_size)
+        nn.init.xavier_uniform_(self.dense1.weight)
         self.dropout1 = nn.Dropout(self.dropout_prob)
+
         self.dense2 = nn.Linear(self.dense1_size, self.dense2_size)
+        nn.init.xavier_uniform_(self.dense2.weight)
         self.dropout2 = nn.Dropout(self.dropout_prob)
 
         self.dense_soft = nn.Linear(self.dense2_size, self.num_labels)
+        nn.init.xavier_uniform_(self.dense_soft.weight)
+
 
     def __mixed_model__(self):
         # Embedding layer
@@ -72,32 +69,19 @@ class MultiCNN(nn.Module):
                                 out_channels=self.out_channels,
                                 kernel_size=(kernel_h, self.embedding_length)).to(cuda)
                                 for kernel_h in self.kernel_heights])
-
-        # Conv layers
-        # self.conv1 = nn.Conv2d(self.in_channels,
-        #                        self.out_channels,
-        #                        (self.kernel_heights[0],
-        #                         self.embedding_length)).to(cuda)
-        # self.conv2 = nn.Conv2d(self.in_channels,
-        #                        self.out_channels,
-        #                        (self.kernel_heights[1],
-        #                         self.embedding_length)).to(cuda)
-        # self.conv3 = nn.Conv2d(self.in_channels,
-        #                        self.out_channels,
-        #                        (self.kernel_heights[2],
-        #                         self.embedding_length)).to(cuda)
-        # self.conv4 = nn.Conv2d(self.in_channels,
-        #                        self.out_channels,
-        #                        (self.kernel_heights[3],
-        #                         self.embedding_length)).to(cuda)
+        (nn.init.xavier_uniform_(conv.weight) for conv in self.convs)
 
         self.dense1 = nn.Linear(len(self.kernel_heights) * self.out_channels,
                                 self.dense1_size).to(cuda)
+        nn.init.xavier_uniform_(self.dense1.weight)
         self.dropout1 = nn.Dropout(self.dropout_prob).to(cuda)
+
         self.dense2 = nn.Linear(self.dense1_size, self.dense2_size).to(cuda)
         self.dropout2 = nn.Dropout(self.dropout_prob).to(cuda)
+        nn.init.xavier_uniform_(self.dense2.weight)
 
         self.dense_soft = nn.Linear(self.dense2_size, self.num_labels).to(cuda)
+        nn.init.xavier_uniform_(self.dense_soft.weight)
 
     def forward(self, x):
         x = self.embeddings(x)
@@ -108,10 +92,6 @@ class MultiCNN(nn.Module):
         x = x.unsqueeze(1)
 
         maxed = [self.conv_block(x, conv) for conv in self.convs]
-        # max_out1 = self.conv_block(x, self.conv1)
-        # max_out2 = self.conv_block(x, self.conv2)
-        # max_out3 = self.conv_block(x, self.conv3)
-        # max_out4 = self.conv_block(x, self.conv4)
 
         x = torch.cat(maxed, dim=1)
 
