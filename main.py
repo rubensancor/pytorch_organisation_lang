@@ -12,8 +12,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from model import MultiCNN
-from load_data import load_dataset
-from metrics import f1, prec, rec, acc, create_confusion_matrix
+from load_data import load_dataset, load_dataset_users
+from metrics import f1, prec, rec, acc, create_confusion_matrix, user_metric
 from pytorchtools import EarlyStopping
 
 
@@ -67,6 +67,9 @@ parser.add_argument('-k1', '--kernel_start',
 parser.add_argument('-k2', '--kernel_steps',
                     default=4, type=int,
                     help='Number of convolutions')
+parser.add_argument('-u', '--users',
+                    action='store_true',
+                    help='Launch the experiment to classify users')
 args = parser.parse_args()
 
 
@@ -270,6 +273,73 @@ def test_model(model, test_iter, orgs_labels):
             total_cm)
 
 
+def test_model_users(model, test_iter, orgs_labels):
+    total_f1_test = []
+    total_prec_test = []
+    total_rec_test = []
+    total_loss_test = []
+    total_acc_test = []
+    total_cm = [[]]
+
+    p = []
+    t = []
+
+    if not model.mixed_memory:
+        model = model.to(device)
+    model.eval()
+
+    with torch.no_grad():
+        for idx, batch in enumerate(test_iter):
+            text = batch.tweet[0]
+            target = batch.organisation
+            target = torch.autograd.Variable(target).long()
+
+            if not model.mixed_memory:
+                text = text.to(device)
+            target = target.to(device)
+
+            prediction = model(text)
+
+            pred, targ = user_metric(prediction, target)
+            p.append(pred)
+            t.append(targ)
+
+            cm = create_confusion_matrix(prediction, target, orgs_labels)
+            if total_cm == [[]]:
+                # print(total_cm)
+                total_cm = cm
+            else:
+                total_cm += cm
+
+    # loss = F.cross_entropy(torch.FloatTensor(p), torch.FloatTensor(t))
+    total_acc_test.append(acc(p, t))
+    total_f1_test.append(f1(p, t))
+    total_prec_test.append(prec(p, t))
+    total_rec_test.append(rec(p, t))
+    # total_loss_test.append(loss.item())
+
+    print('TEST --> ',
+          'acc_test: {:.4f}'.format(np.mean(total_acc_test)),
+          'f1_test: {:.4f}'.format(np.mean(total_f1_test)),
+          'prec_test: {:.4f}'.format(np.mean(total_prec_test)),
+          'rec_test: {:.4f}'.format(np.mean(total_rec_test)),
+        #   'loss_test: {:.4f}'.format(loss.item()),
+          flush=True)
+    wandb.log({'acc_test': np.mean(total_acc_test),
+               'f1_test': np.mean(total_f1_test),
+               'prec_test': np.mean(total_prec_test),
+               'rec_test': np.mean(total_rec_test)})
+            #    'loss_test_mean': np.mean(total_loss_test)})
+    plot_cm(total_cm)
+
+    return (np.mean(total_acc_test),
+            np.mean(total_f1_test),
+            np.mean(total_prec_test),
+            np.mean(total_rec_test),
+            # np.mean(total_loss_test),
+            total_cm)
+
+
 def plot_cm(cm):
     fig, ax = plt.subplots()
     ax.imshow(cm)
@@ -314,7 +384,10 @@ def launch_experiment(model, orgs_labels):
 
     model.load_state_dict(torch.load('checkpoint.pt'))
 
-    return test_model(model, test_iter, orgs_labels)
+    if args.users:
+        return test_model_users(model, test_iter, orgs_labels)
+    else:
+        return test_model(model, test_iter, orgs_labels)
 
     # wandb.save('checkpoint.pt')
 
@@ -326,16 +399,31 @@ if __name__ == '__main__':
     print('*' * 20 + ' Loading data ' + '*' * 20, flush=True)
 
     # TODO Change the device to use with a flag
-    (TEXT,
-     vocab_size,
-     label_size,
-     word_embeddings,
-     train_iter,
-     valid_iter,
-     test_iter,
-     orgs_labels) = load_dataset(path='./data/' + args.file,
-                                 device=torch.device('cpu'),
-                                 batch_size=args.batch)
+    if args.users:
+        (TEXT,
+         vocab_size,
+         label_size,
+         word_embeddings,
+         train_iter,
+         valid_iter,
+         test_iter,
+         orgs_labels) = load_dataset_users(train_path='/pytorch_organisation_lang/data/users/' + args.file + '/train_users.csv',
+                                           val_path='/pytorch_organisation_lang/data/users/' + args.file + '/val_users.csv',
+                                           test_path='/pytorch_organisation_lang/data/users/' + args.file + '/test_users.csv',
+                                           device=torch.device('cpu'),
+                                           batch_size=args.batch)
+    else:
+        (TEXT,
+         vocab_size,
+         label_size,
+         word_embeddings,
+         train_iter,
+         valid_iter,
+         test_iter,
+         orgs_labels) = load_dataset(path='./data/' + args.file,
+                                     device=torch.device('cpu'),
+                                     batch_size=args.batch)
+
 
     print('*' * 20 + ' DATA LOADED! ' + '*' * 20, flush=True)
 
