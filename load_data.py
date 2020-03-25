@@ -78,6 +78,7 @@ def load_dataset_users(train_path, val_path, test_path, device, batch_size):
 
     LABEL = data.LabelField(sequential=False)
 
+
     train_data = data.TabularDataset(path=train_path,
                                      format='CSV',
                                      fields=[('user_id', None),

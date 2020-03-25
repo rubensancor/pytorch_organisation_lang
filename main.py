@@ -77,7 +77,7 @@ if not args.wandb_sync:
     os.environ['WANDB_MODE'] = 'dryrun'
 
 # Logging
-wandb.init(project="organisational-language-final", config=args)
+wandb.init(project="organisational-language-valhalla", config=args, tags=["users"])
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -245,7 +245,7 @@ def test_model(model, test_iter, orgs_labels):
             total_rec_test.append(rec(prediction, target))
             total_loss_test.append(loss.item())
 
-            cm = create_confusion_matrix(prediction, target)
+            cm = create_confusion_matrix(prediction, target, orgs_labels)
             if total_cm == [[]]:
                 total_cm = cm
             else:
@@ -398,6 +398,7 @@ if __name__ == '__main__':
 
     print('*' * 20 + ' Loading data ' + '*' * 20, flush=True)
 
+    users_path = '/pytorch_organisation_lang/data/users/'
     # TODO Change the device to use with a flag
     if args.users:
         (TEXT,
@@ -407,9 +408,9 @@ if __name__ == '__main__':
          train_iter,
          valid_iter,
          test_iter,
-         orgs_labels) = load_dataset_users(train_path='/pytorch_organisation_lang/data/users/' + args.file + '/train_users.csv',
-                                           val_path='/pytorch_organisation_lang/data/users/' + args.file + '/val_users.csv',
-                                           test_path='/pytorch_organisation_lang/data/users/' + args.file + '/test_users.csv',
+         orgs_labels) = load_dataset_users(train_path=users_path + args.file + '/train_users.csv',
+                                           val_path=users_path + args.file + '/val_users.csv',
+                                           test_path=users_path + args.file + '/test_users.csv',
                                            device=torch.device('cpu'),
                                            batch_size=args.batch)
     else:
@@ -439,7 +440,8 @@ if __name__ == '__main__':
                      dense2_size=args.dense2_size,
                      mixed_memory=args.mixed_memory,
                      num_labels=label_size,
-                     freeze_embeddings=args.freeze)
+                     freeze_embeddings=args.freeze,
+                     users=args.users)
 
     print('*' * 20 + ' Starting experiment ' + '*' * 20, flush=True)
 

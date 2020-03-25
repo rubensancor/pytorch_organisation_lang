@@ -9,7 +9,7 @@ cuda = torch.device('cuda')
 class MultiCNN(nn.Module):
     def __init__(self, dropout_prob, embedding_matrix, vocab_size,
                  embedding_length, kernel_heights, in_channels,
-                 out_channels, num_labels, dense1_size, dense2_size,
+                 out_channels, num_labels, dense1_size, dense2_size, users,
                  mixed_memory=False, freeze_embeddings=False):
         super(MultiCNN, self).__init__()
 
@@ -26,6 +26,7 @@ class MultiCNN(nn.Module):
         self.out_channels = out_channels
         self.dense1_size = dense1_size
         self.dense2_size = dense2_size
+        self.users = users
 
         if mixed_memory:
             self.__mixed_model__()
@@ -44,6 +45,7 @@ class MultiCNN(nn.Module):
                                 kernel_size=(kernel_h, self.embedding_length))
                                 for kernel_h in self.kernel_heights])
         (nn.init.xavier_uniform_(conv.weight) for conv in self.convs)
+        
 
         self.dense1 = nn.Linear(len(self.kernel_heights) * self.out_channels,
                                 self.dense1_size)
@@ -96,13 +98,18 @@ class MultiCNN(nn.Module):
         x = torch.cat(maxed, dim=1)
 
         x = self.dense1(x)
+        x = F.relu(x)
         x = self.dropout1(x)
         x = self.dense2(x)
+        x = F.relu(x)
         x = self.dropout2(x)
 
         x = self.dense_soft(x)
-
-        return x
+        
+        if self.users:
+            return x
+        else:
+            return F.log_softmax(x, dim=1)
 
     def conv_block(self, input, conv_layer):
 
